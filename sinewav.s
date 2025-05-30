@@ -855,6 +855,7 @@ ParseFraction:
 	xor edx, edx
 	xor eax, eax
 	fld1
+	fld1
 	fldz
 .loop:
 	lodsb
@@ -862,17 +863,19 @@ ParseFraction:
 	cmp al, 10
 	jnc .done
 	mov [rbp + Temp], al
-	fmul st0, st2
-	fxch st1
-	fmul st0, st2
-	fxch st1
+	fmul st0, st3
+	fscale
+	fxch st2
+	fmul st0, st3
+	fxch st2
 	fild dword[rbp + Temp]
 	faddp
 	dec edx
 	cmp edx, -0x1000 ; limit the number of digits to avoid overflowing the exponent
 	jnc .loop
 .done:
-	fstp st2
+	fstp st3
+	fstp st0
 	fdivp
 	mov [rbp + Temp], edx
 	fild dword[rbp + Temp]
