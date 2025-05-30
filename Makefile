@@ -1,3 +1,5 @@
+.PHONY: all debug clean
+
 all:
 	nasm -felf64 sinewav.s -o sinewav.o
 	ld -s -n sinewav.o -o sinewav
