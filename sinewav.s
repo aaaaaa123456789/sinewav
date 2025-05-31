@@ -66,6 +66,12 @@ endstruc
 %assign PROT_READ        1
 %assign PROT_WRITE       2
 
+; comparison constants (for vcmppd, etc.) - default unordered (unless negated) and non-signalling
+%assign CMP_NOT_EQ    4
+%assign CMP_LT     0x11
+%assign CMP_GE     0x1d
+%assign CMP_GT     0x1e
+
 	section .text align=1
 
 
@@ -329,6 +335,7 @@ GenerateOutput:
 	%macro generatewave 1
 		vmulpd ymm9, %1, ymm11
 		vmovapd [rbp + SampleBuffer], ymm9
+		vcmppd ymm9, %1, ymm15, CMP_NOT_EQ
 		fld qword[rbp + SampleBuffer]
 		fsin
 		fstp qword[rbp + SampleBuffer]
@@ -342,7 +349,6 @@ GenerateOutput:
 		fsin
 		fstp qword[rbp + SampleBuffer + 24]
 		; special handling for mid-period values, because fsin is inaccurate around pi
-		vcmppd ymm9, %1, ymm15, 4 ; not equal
 		vblendvpd %1, ymm9, [rbp + SampleBuffer], ymm9
 	%endmacro
 	generatewave ymm5
@@ -365,18 +371,18 @@ GenerateOutput:
 	vmulpd ymm1, ymm1, ymm14
 	vmulpd ymm2, ymm2, ymm14
 	vmulpd ymm3, ymm3, ymm14
-	vcmppd ymm4, ymm0, ymm12, 0x11 ; less than
-	vcmppd ymm5, ymm1, ymm12, 0x11
-	vcmppd ymm6, ymm2, ymm12, 0x11
-	vcmppd ymm7, ymm3, ymm12, 0x11
+	vcmppd ymm4, ymm0, ymm12, CMP_LT
+	vcmppd ymm5, ymm1, ymm12, CMP_LT
+	vcmppd ymm6, ymm2, ymm12, CMP_LT
+	vcmppd ymm7, ymm3, ymm12, CMP_LT
 	vblendvpd ymm0, ymm12, ymm0, ymm4
 	vblendvpd ymm1, ymm12, ymm1, ymm5
 	vblendvpd ymm2, ymm12, ymm2, ymm6
 	vblendvpd ymm3, ymm12, ymm3, ymm7
-	vcmppd ymm4, ymm0, ymm13, 0x1e ; greater than
-	vcmppd ymm5, ymm1, ymm13, 0x1e
-	vcmppd ymm6, ymm2, ymm13, 0x1e
-	vcmppd ymm7, ymm3, ymm13, 0x1e
+	vcmppd ymm4, ymm0, ymm13, CMP_GT
+	vcmppd ymm5, ymm1, ymm13, CMP_GT
+	vcmppd ymm6, ymm2, ymm13, CMP_GT
+	vcmppd ymm7, ymm3, ymm13, CMP_GT
 	vblendvpd ymm0, ymm13, ymm0, ymm4
 	vblendvpd ymm1, ymm13, ymm1, ymm5
 	vblendvpd ymm2, ymm13, ymm2, ymm6
@@ -442,15 +448,14 @@ SampleGenerators:
 	vmulpd ymm5, ymm1, ymm9
 	vmulpd ymm6, ymm2, ymm9
 	vmulpd ymm7, ymm3, ymm9
-	vxorpd ymm9, ymm9, ymm9
-	vcmppd ymm0, ymm4, ymm8, 0x11 ; less than
-	vcmppd ymm1, ymm5, ymm8, 0x11
-	vcmppd ymm2, ymm6, ymm8, 0x11
-	vcmppd ymm3, ymm7, ymm8, 0x11
-	vblendvpd ymm0, ymm13, ymm9, ymm0
-	vblendvpd ymm1, ymm13, ymm9, ymm1
-	vblendvpd ymm2, ymm13, ymm9, ymm2
-	vblendvpd ymm3, ymm13, ymm9, ymm3
+	vcmppd ymm0, ymm4, ymm8, CMP_GE
+	vcmppd ymm1, ymm5, ymm8, CMP_GE
+	vcmppd ymm2, ymm6, ymm8, CMP_GE
+	vcmppd ymm3, ymm7, ymm8, CMP_GE
+	vblendvpd ymm0, ymm0, ymm13, ymm0
+	vblendvpd ymm1, ymm1, ymm13, ymm1
+	vblendvpd ymm2, ymm2, ymm13, ymm2
+	vblendvpd ymm3, ymm3, ymm13, ymm3
 	vaddpd ymm0, ymm0, ymm4
 	vaddpd ymm1, ymm1, ymm5
 	vaddpd ymm2, ymm2, ymm6
@@ -485,15 +490,14 @@ SampleGenerators:
 	vmulpd ymm5, ymm1, ymm9
 	vmulpd ymm6, ymm2, ymm9
 	vmulpd ymm7, ymm3, ymm9
-	vxorpd ymm8, ymm8, ymm8
-	vcmppd ymm0, ymm4, ymm9, 0x11 ; less than
-	vcmppd ymm1, ymm5, ymm9, 0x11
-	vcmppd ymm2, ymm6, ymm9, 0x11
-	vcmppd ymm3, ymm7, ymm9, 0x11
-	vblendvpd ymm0, ymm13, ymm8, ymm0
-	vblendvpd ymm1, ymm13, ymm8, ymm1
-	vblendvpd ymm2, ymm13, ymm8, ymm2
-	vblendvpd ymm3, ymm13, ymm8, ymm3
+	vcmppd ymm0, ymm4, ymm9, CMP_GE
+	vcmppd ymm1, ymm5, ymm9, CMP_GE
+	vcmppd ymm2, ymm6, ymm9, CMP_GE
+	vcmppd ymm3, ymm7, ymm9, CMP_GE
+	vblendvpd ymm0, ymm0, ymm13, ymm0
+	vblendvpd ymm1, ymm1, ymm13, ymm1
+	vblendvpd ymm2, ymm2, ymm13, ymm2
+	vblendvpd ymm3, ymm3, ymm13, ymm3
 	vaddpd ymm0, ymm0, ymm4
 	vaddpd ymm1, ymm1, ymm5
 	vaddpd ymm2, ymm2, ymm6
@@ -543,11 +547,11 @@ ProcessArgument:
 	cmp byte[rsi], "-"
 	jnz .wave
 	; all options are single character; fail on different lengths
-	movzx eax, word[rsi + 1] ; unaligned, but the CPU can do it
+	movzx eax, byte[rsi + 1]
 	test al, al
 	jz .invalid
-	cmp eax, 0x80
-	jnc .invalid
+	cmp byte[rsi + 2], 0
+	jnz .invalid
 	; find the option that was selected
 	vmovd xmm0, eax
 	mov rax, "bwqflsvh"
