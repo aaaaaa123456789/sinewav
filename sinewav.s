@@ -262,7 +262,10 @@ GenerateOutput:
 	vpermilpd xmm1, xmm1, 0
 	vsubpd xmm7, xmm1, xmm10
 	vblendvpd xmm1, xmm7, xmm1, xmm7
-	vperm2f128 ymm0, ymm0, ymm1, 0x20
+	vaddpd xmm6, xmm0, xmm1
+	vsubpd xmm7, xmm6, xmm10
+	vblendvpd xmm6, xmm7, xmm6, xmm7
+	vperm2f128 ymm0, ymm0, ymm6, 0x20
 	vaddpd xmm1, xmm1, xmm1
 	vsubpd xmm7, xmm1, xmm10
 	vblendvpd xmm1, xmm7, xmm1, xmm7
