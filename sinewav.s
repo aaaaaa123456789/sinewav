@@ -83,8 +83,9 @@ _start:
 	syscall
 	cmp rax, -EBADF
 	jz ExitFailure ; stderr is closed: just fail
-	mov edi, 1
 	mov esi, F_GETFD
+	assert F_GETFD == 1
+	mov edi, esi
 	mov eax, fcntl
 	syscall
 	cmp rax, -EBADF
@@ -159,7 +160,7 @@ GenerateOutput:
 	fst qword[rbp + Temp]
 	vbroadcastsd ymm15, [rbp + Temp]
 	fldpi
-	fdivrp
+	fdivrp st1
 	fstp qword[rbp + Temp]
 	vbroadcastsd ymm11, [rbp + Temp]
 	; ymm10 = frequency, ymm11 = 2pi / frequency, ymm15 = frequency / 2
@@ -178,17 +179,17 @@ GenerateOutput:
 	; convert the volume from negative dB to a factor
 	fld qword[rbp + OutputVolume]
 	fldl2t
-	fmulp
-	mov dword[rbp + Temp], -20
-	fild dword[rbp + Temp]
-	fdivp
+	fmulp st1
+	mov word[rbp + Temp], -20
+	fild word[rbp + Temp]
+	fdivp st1
 	fld st0
 	frndint
 	fxch st1
 	fsub st0, st1
 	f2xm1
 	fld1
-	faddp
+	faddp st1
 	fscale
 	fstp st1
 	fstp qword[rbp + OutputVolume]
@@ -227,7 +228,7 @@ GenerateOutput:
 	mov [rdi + 46], eax
 	mov dword[rdi + 50], 0x61746164 ; "data" (backwards)
 	mov [rdi + 54], ebx
-	mov rbx, 58
+	mov ebx, 58
 	call WriteOutput
 
 	; prepare data to be kept in registers
@@ -269,13 +270,13 @@ GenerateOutput:
 	vsubpd xmm7, xmm1, xmm10
 	vblendvpd xmm1, xmm7, xmm1, xmm7
 	vaddpd xmm6, xmm0, xmm1
+	vinsertf128 ymm1, ymm1, xmm1, 1
 	vsubpd xmm7, xmm6, xmm10
 	vblendvpd xmm6, xmm7, xmm6, xmm7
-	vperm2f128 ymm0, ymm0, ymm6, 0x20
-	vaddpd xmm1, xmm1, xmm1
-	vsubpd xmm7, xmm1, xmm10
-	vblendvpd xmm1, xmm7, xmm1, xmm7
-	vinsertf128 ymm1, ymm1, xmm1, 1
+	vinsertf128 ymm0, ymm0, xmm6, 1
+	vaddpd ymm1, ymm1, ymm1
+	vsubpd ymm7, ymm1, ymm10
+	vblendvpd ymm1, ymm7, ymm1, ymm7
 	vaddpd ymm2, ymm1, ymm1
 	vsubpd ymm6, ymm2, ymm10
 	vaddpd ymm1, ymm1, ymm0
@@ -857,8 +858,8 @@ ParseInteger:
 
 ParseFraction:
 	; input: rsi: fractional portion of number; output: xmm0: value, rsi: pointer to first non-digit, carry: digit overflow
-	mov dword[rbp + Temp], 5
-	fild dword[rbp + Temp]
+	mov word[rbp + Temp], 5
+	fild word[rbp + Temp]
 	xor edx, edx
 	xor eax, eax
 	fld1
@@ -875,15 +876,15 @@ ParseFraction:
 	fxch st2
 	fmul st0, st3
 	fxch st2
-	fild dword[rbp + Temp]
-	faddp
+	fild word[rbp + Temp]
+	faddp st1
 	dec edx
 	cmp edx, -0x1000 ; limit the number of digits to avoid overflowing the exponent
 	jnc .loop
 .done:
 	fstp st3
 	fstp st0
-	fdivp
+	fdivp st1
 	mov [rbp + Temp], edx
 	fild dword[rbp + Temp]
 	fxch st1
