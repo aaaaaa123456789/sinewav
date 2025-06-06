@@ -66,7 +66,7 @@ endstruc
 %assign PROT_READ        1
 %assign PROT_WRITE       2
 
-; comparison constants (for vcmppd, etc.) - default unordered (unless negated) and non-signalling
+; comparison constants (for vcmppd, etc.) - default ordered (unless negated) and non-signalling
 %assign CMP_NOT_EQ    4
 %assign CMP_LT     0x11
 %assign CMP_GE     0x1d
@@ -476,12 +476,6 @@ SampleGenerators:
 	add rdi, 16
 	ret
 
-.bytemasks:
-	db 0, 4, 8, 12
-	times 12 db -1
-	db 0, 4, 8, 12
-	times 8 db -1
-
 .words:
 	endbr64
 	mov rax, double(32768.)
@@ -509,8 +503,8 @@ SampleGenerators:
 	vcvtpd2dq xmm6, ymm2
 	vcvtpd2dq xmm7, ymm3
 	vldmxcsr [rbp + FPControlWord]
-	vmovdqu xmm2, [rel .wordmasks]
-	vmovdqu xmm3, [rel .wordmasks + 8]
+	vmovdqu xmm2, [rel .wordmasks + 8]
+	vmovdqu xmm3, [rel .wordmasks]
 	vpshufb xmm4, xmm4, xmm2
 	vpshufb xmm5, xmm5, xmm3
 	vpshufb xmm6, xmm6, xmm2
@@ -522,10 +516,14 @@ SampleGenerators:
 	add rdi, 32
 	ret
 
+.bytemasks:
+	db 0, 4, 8, 12
+	times 12 db -1
+	db 0, 4, 8, 12
 .wordmasks:
+	times 8 db -1 ; also part of byte masks
 	db 0, 1, 4, 5, 8, 9, 12, 13
 	times 8 db -1
-	db 0, 1, 4, 5, 8, 9, 12, 13
 
 .floats:
 	endbr64
@@ -561,10 +559,10 @@ ProcessArgument:
 	jnc .invalid
 	cmp cl, 6
 	jz .volume
-	jnc .usage
+	ja .usage
 	cmp cl, 3
 	jz .frequency
-	jnc .length
+	ja .length
 	bts word[rbp + ArgumentFlags], 2
 	lea rsi, [rel Messages.mode_already_set]
 	mov edx, Messages.mode_already_set_end - Messages.mode_already_set
@@ -637,12 +635,12 @@ ProcessArgument:
 	jc .bad_frequency
 	cmp byte[rsi], 0
 	jnz .bad_frequency
+	test rdx, rdx
+	jz .bad_frequency
 	cmp rdx, 1000000000
 	jnc .bad_frequency
-	test edx, edx
-	jz .bad_frequency
+	; carry is set here!
 	mov [rbp + OutputFrequency], edx
-	stc
 	ret
 
 .bad_frequency:
@@ -693,15 +691,15 @@ ProcessArgument:
 .samples:
 	call ParseInteger
 	jc .bad_length
-	cmp rdx, 1000000000
-	jnc .bad_length
 	cmp byte[rsi], 0
 	jnz .bad_length
-	test edx, edx
-	jz .bad_length
-	mov [rbp + OutputLength], rdx
 	or byte[rbp + ArgumentFlags + 1], 0x80
-	stc
+	test rdx, rdx
+	jz .bad_length
+	cmp rdx, 1000000000
+	jnc .bad_length
+	; carry is set here!
+	mov [rbp + OutputLength], rdx
 	ret
 
 .bad_length:
